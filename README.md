@@ -2,6 +2,10 @@
 
 A dead-simple, non-compressing archiving tool.
 
+## Prerequisites
+
+- dotnet >=8.0
+
 ## Syntax
 
 ### Archiving
