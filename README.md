@@ -1,4 +1,4 @@
-# DArch
+# DArch (Direct Archiver)
 
 A dead-simple, non-compressing archiving tool.
 
