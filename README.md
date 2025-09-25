@@ -16,7 +16,7 @@ A dead-simple, non-compressing archiving tool.
 
 `darch -x <archive name> -o <output directory>`
 
-## Supported platforms
+## Supported Platforms
 
 - [x] macOS
 - [x] Linux
