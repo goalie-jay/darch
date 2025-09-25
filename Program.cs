@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.IO;
@@ -25,7 +25,7 @@ namespace Darch
     	{
     		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     		{
-    			Console.WriteLine("This program is not supported on non-POSIX platforms.");
+    			Console.WriteLine("This program does not support non-POSIX platforms.");
     			return 77;
     		}
 
