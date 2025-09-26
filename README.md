@@ -19,5 +19,5 @@ A dead-simple, non-compressing archiving tool.
 ## Supported Platforms
 
 - [x] macOS
-- [x] Linux
+- [x] Linux (if you can get the build to work)
 - [ ] Windows (eventually)
