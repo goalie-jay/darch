@@ -1,2 +1,5 @@
 # Build results
 [Bb]uild/
+
+# macOS nonsense
+.DS_Store
