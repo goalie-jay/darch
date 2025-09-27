@@ -20,6 +20,10 @@ A dead-simple, non-compressing archiving tool.
 
 - [x] macOS
 - [x] Linux
+- [x] Solaris
+- [x] FreeBSD
+- [x] OpenBSD
+- [x] Literally any UNIX or just POSIX-compliant system
 - [ ] Windows
 
 Windows support is not impossible but major changes would have to be made. Don't expect it from me. (Maybe a fork, eh?)
