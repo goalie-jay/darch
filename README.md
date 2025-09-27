@@ -4,7 +4,7 @@ A dead-simple, non-compressing archiving tool.
 
 ## Prerequisites
 
-- dotnet >=8.0
+- A C compiler
 
 ## Syntax
 
@@ -19,5 +19,7 @@ A dead-simple, non-compressing archiving tool.
 ## Supported Platforms
 
 - [x] macOS
-- [x] Linux (if you can get the build to work)
-- [ ] Windows (eventually)
+- [x] Linux
+- [ ] Windows
+
+Windows support is not impossible but major changes would have to be made. Don't expect it from me. (Maybe a fork, eh?)
