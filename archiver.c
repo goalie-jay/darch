@@ -372,6 +372,7 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 
 		fwrite(lp->Entries[i]->BinaryContents, 1, lp->Entries[i]->BinaryLength, f);
 		fclose(f);
+		chmod(destination, (mode_t)lp->Entries[i]->Permissions);
 
 		free(destination);
 		free(destinationParent);
