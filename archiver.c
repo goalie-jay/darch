@@ -2,13 +2,23 @@
 
 #include <assert.h>
 
+#ifdef WINDOWS
+#include "windowsfolder.h"
+#else
 #include "posixfolder.h"
-#include <string.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#endif
+
+#include <string.h>
 
 #include "error.h"
 
+#ifdef WINDOWS
+const char PLATFORM_SLASH = '\\';
+#else
+const char PLATFORM_SLASH = '/';
+#endif
 const ARCHIVE_INT HEADER_MAGIC = 0x992FF;
 const int INITIAL_ENTRY_ALLOC_COUNT = 20;
 char Verbose = 0;
@@ -20,16 +30,34 @@ void ARCHIVE_SetVerbose(char verbose)
 
 char IsDirectory(char* sz)
 {
+#ifdef WINDOWS
+	DWORD dw = GetFileAttributesA(sz);
+
+	if (dw == INVALID_FILE_ATTRIBUTES) return 0;
+	if (dw & FILE_ATTRIBUTE_DIRECTORY) return 1;
+
+	return 0;
+#else
 	DIR* lp = opendir(sz);
 	if (!lp) return 0;
 
 	closedir(lp);
 	return 1;
+#endif
 }
 
 char IsFile(char* sz)
 {
+#ifdef WINDOWS
+	DWORD dw = GetFileAttributesA(sz);
+
+	if (dw == INVALID_FILE_ATTRIBUTES) return 0;
+	if (dw & FILE_ATTRIBUTE_DIRECTORY) return 0;
+
+	return 1;
+#else
 	return (access(sz, 0) == 0) && !IsDirectory(sz);
+#endif
 }
 
 // Helper method
@@ -159,10 +187,10 @@ void ReconstructArchiveDataFromFile(ARCHIVE_HEADER* lp, FILE* input)
 	}
 }
 
-ARCHIVE_INT PathGetSlashIdx(char* sz)
+ARCHIVE_INT PathGetPLATFORM_SLASHIdx(char* sz)
 {
 	ARCHIVE_INT i = strlen(sz) - 1;
-	while (i >= 0 && sz[i] != '/')
+	while (i >= 0 && sz[i] != PLATFORM_SLASH)
 		--i;
 
 	return i;
@@ -170,25 +198,25 @@ ARCHIVE_INT PathGetSlashIdx(char* sz)
 
 char* GetFileNameFromPath(char* sz)
 {
-	ARCHIVE_INT slashIdx = PathGetSlashIdx(sz);
+	ARCHIVE_INT PLATFORM_SLASHIdx = PathGetPLATFORM_SLASHIdx(sz);
 
-	if (sz[slashIdx + 1] == 0) return NULL;
+	if (sz[PLATFORM_SLASHIdx + 1] == 0) return NULL;
 
-	ARCHIVE_INT allocSize = strlen(sz) - slashIdx;
+	ARCHIVE_INT allocSize = strlen(sz) - PLATFORM_SLASHIdx;
 	char* lp = malloc(allocSize);
 	memset(lp, 0, allocSize);
 
-	memcpy(lp, (char*)((unsigned long)sz + slashIdx + 1), allocSize - 1);
+	memcpy(lp, (char*)((unsigned long)sz + PLATFORM_SLASHIdx + 1), allocSize - 1);
 	return lp;
 }
 
 char* GetDirectoryNameFromPath(char* sz)
 {
-	ARCHIVE_INT slashIdx = PathGetSlashIdx(sz);
+	ARCHIVE_INT PLATFORM_SLASHIdx = PathGetPLATFORM_SLASHIdx(sz);
 
-	char* lp = malloc(slashIdx + 1);
-	memset(lp, 0, slashIdx + 1);
-	memcpy(lp, sz, slashIdx);
+	char* lp = malloc(PLATFORM_SLASHIdx + 1);
+	memset(lp, 0, PLATFORM_SLASHIdx + 1);
+	memcpy(lp, sz, PLATFORM_SLASHIdx);
 
 	return lp;
 }
@@ -201,11 +229,11 @@ char* CombinePath(char* left, char* right)
 	char* lpSecondStr = NULL;
 
 	memcpy(lp, left, lenLeft);
-	if (lp[lenLeft - 1] == '/')
+	if (lp[lenLeft - 1] == PLATFORM_SLASH)
 		lpSecondStr = (char*)((unsigned long)lp + lenLeft);
 	else
 	{
-		lp[lenLeft] = '/';
+		lp[lenLeft] = PLATFORM_SLASH;
 		lpSecondStr = (char*)((unsigned long)lp + lenLeft + 1);
 	}
 
@@ -216,6 +244,29 @@ char* CombinePath(char* left, char* right)
 
 void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 {
+#ifdef WINDOWS
+	HANDLE hFile = CreateFileA();
+
+	if (hFile)
+	{
+		if (Verbose)
+			printf("%s\n", filename);
+
+		ARCHIVE_INT permissions = 0; // Skip on Windows because it's unnecessary
+		FILE* f = fopen(filename, "rb");
+		ARCHIVE_INT size = 0;
+		fseek(f, 0, SEEK_END);
+		size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		char* binary = malloc(size);
+		fread(binary, 1, size, f);
+
+		char* fname = GetFileNameFromPath(filename);
+		char* relativePath = CombinePath(parent, fname);
+		free(fname);
+		HEADER_AddFile(lp, relativePath, binary, size, permissions);
+	}
+#else
 	struct stat s;
 	if (stat(filename, &s) != -1)
 	{
@@ -236,6 +287,7 @@ void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 		free(fname);
 		HEADER_AddFile(lp, relativePath, binary, size, permissions);
 	}
+#endif
 }
 
 void AddDirectoryRecursiveToArchive(ARCHIVE_HEADER* lp, char* dir, char* parent)
@@ -289,7 +341,11 @@ void ARCHIVER_Archive(char** objectNames, long objectCount, FILE* output)
 	HEADER_Destroy(lp);
 }
 
+#ifdef WINDOWS
+char mkdir_p(char* path, long mode_WARNING_UNUSED_ON_THIS_PLATFORM)
+#else
 char mkdir_p(char* path, mode_t mode)
+#endif
 {
 	char *tmp = strdup(path);
 	char *p = NULL;
@@ -306,15 +362,25 @@ char mkdir_p(char* path, mode_t mode)
 	}
 
 	// Remove trailing slash
-	if (tmp[len - 1] == '/')
+	if (tmp[len - 1] == PLATFORM_SLASH)
 		tmp[len - 1] = '\0';
 
 	for (p = tmp + 1; *p; p++)
 	{
-		if (*p == '/')
+		if (*p == PLATFORM_SLASH)
 		{
 			*p = '\0';
 
+#ifdef WINDOWS
+			if (!CreateDirectoryA(tmp, NULL))
+			{
+				if (GetLastError() != ERROR_ALREADY_EXISTS)
+				{
+					free(tmp);
+					return 0;
+				}
+			}
+#else
 			if (mkdir(tmp, mode) != 0)
 			{
 				if (errno != EEXIST)
@@ -323,12 +389,23 @@ char mkdir_p(char* path, mode_t mode)
 					return 0;
 				}
 			}
+#endif
 
-			*p = '/';
+			*p = PLATFORM_SLASH;
 		}
 	}
 
 	// Make final directory
+#ifdef WINDOWS
+	if (!CreateDirectoryA(tmp, NULL))
+	{
+		if (GetLastError() != ERROR_ALREADY_EXISTS)
+		{
+			free(tmp);
+			return 0;
+		}
+	}
+#else
 	if (mkdir(tmp, mode) != 0)
 	{
 		if (errno != EEXIST)
@@ -337,7 +414,9 @@ char mkdir_p(char* path, mode_t mode)
 			return 0;
 		}
 	}
+#endif
 
+	free(tmp);
 	return 1;
 }
 
@@ -372,7 +451,10 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 
 		fwrite(lp->Entries[i]->BinaryContents, 1, lp->Entries[i]->BinaryLength, f);
 		fclose(f);
+
+#ifndef WINDOWS
 		chmod(destination, (mode_t)lp->Entries[i]->Permissions);
+#endif
 
 		free(destination);
 		free(destinationParent);
