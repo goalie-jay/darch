@@ -1,5 +1,8 @@
 # Build results
 [Bb]uild/
 
+# Windows
+*.obj
+
 # macOS nonsense
 .DS_Store
