@@ -186,10 +186,10 @@ void ReconstructArchiveDataFromFile(ARCHIVE_HEADER* lp, FILE* input)
 	}
 }
 
-ARCHIVE_INT PathGetPLATFORM_SLASHIdx(char* sz)
+ARCHIVE_INT PathGetSlashIdx(char* sz)
 {
 	ARCHIVE_INT i = strlen(sz) - 1;
-	while (i >= 0 && sz[i] != PLATFORM_SLASH)
+	while (i >= 0 && sz[i] != PLATFORM_SLASH && sz[i] != '/') // Necessary on Win
 		--i;
 
 	return i;
@@ -197,25 +197,25 @@ ARCHIVE_INT PathGetPLATFORM_SLASHIdx(char* sz)
 
 char* GetFileNameFromPath(char* sz)
 {
-	ARCHIVE_INT PLATFORM_SLASHIdx = PathGetPLATFORM_SLASHIdx(sz);
+	ARCHIVE_INT slashIdx = PathGetSlashIdx(sz);
 
-	if (sz[PLATFORM_SLASHIdx + 1] == 0) return NULL;
+	if (sz[slashIdx + 1] == 0) return NULL;
 
-	ARCHIVE_INT allocSize = strlen(sz) - PLATFORM_SLASHIdx;
+	ARCHIVE_INT allocSize = strlen(sz) - slashIdx;
 	char* lp = malloc(allocSize);
 	memset(lp, 0, allocSize);
 
-	memcpy(lp, (char*)((uint64_t)sz + PLATFORM_SLASHIdx + 1), allocSize - 1);
+	memcpy(lp, (char*)((uint64_t)sz + slashIdx + 1), allocSize - 1);
 	return lp;
 }
 
 char* GetDirectoryNameFromPath(char* sz)
 {
-	ARCHIVE_INT PLATFORM_SLASHIdx = PathGetPLATFORM_SLASHIdx(sz);
+	ARCHIVE_INT slashIdx = PathGetSlashIdx(sz);
 
-	char* lp = malloc(PLATFORM_SLASHIdx + 1);
-	memset(lp, 0, PLATFORM_SLASHIdx + 1);
-	memcpy(lp, sz, PLATFORM_SLASHIdx);
+	char* lp = malloc(slashIdx + 1);
+	memset(lp, 0, slashIdx + 1);
+	memcpy(lp, sz, slashIdx);
 
 	return lp;
 }
@@ -228,11 +228,11 @@ char* CombinePath(char* left, char* right)
 	char* lpSecondStr = NULL;
 
 	memcpy(lp, left, lenLeft);
-	if (lp[lenLeft - 1] == PLATFORM_SLASH)
+	if (lp[lenLeft - 1] == '/')
 		lpSecondStr = (char*)((uint64_t)lp + lenLeft);
 	else
 	{
-		lp[lenLeft] = PLATFORM_SLASH;
+		lp[lenLeft] = '/';
 		lpSecondStr = (char*)((uint64_t)lp + lenLeft + 1);
 	}
 
@@ -247,7 +247,7 @@ void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 	if (Verbose)
 		printf("%s\n", filename);
 
-	ARCHIVE_INT permissions = 0; // Skip on Windows because it's unnecessary
+	ARCHIVE_INT permissions = (ARCHIVE_INT)GetFileAttributesA(filename); // Use perms field to store file attributes on Windows. Clever, eh?
 	FILE* f = fopen(filename, "rb");
 	ARCHIVE_INT size = 0;
 	fseek(f, 0, SEEK_END);
@@ -356,6 +356,11 @@ char mkdir_p(char* path, mode_t mode)
 		free(tmp);
 		return 0;
 	}
+	
+#ifdef WINDOWS
+	// *Sigh*
+	for (int i = 0; i < len; ++i) if (tmp[i] == '/') tmp[i] = '\\';
+#endif
 
 	// Remove trailing slash
 	if (tmp[len - 1] == PLATFORM_SLASH)
@@ -370,7 +375,7 @@ char mkdir_p(char* path, mode_t mode)
 #ifdef WINDOWS
 			if (!CreateDirectoryA(tmp, NULL))
 			{
-				if (GetLastError() != DARCH_ERROR_ALREADY_EXISTS)
+				if (GetLastError() != ERROR_ALREADY_EXISTS)
 				{
 					free(tmp);
 					return 0;
@@ -395,7 +400,7 @@ char mkdir_p(char* path, mode_t mode)
 #ifdef WINDOWS
 	if (!CreateDirectoryA(tmp, NULL))
 	{
-		if (GetLastError() != DARCH_ERROR_ALREADY_EXISTS)
+		if (GetLastError() != ERROR_ALREADY_EXISTS)
 		{
 			free(tmp);
 			return 0;
@@ -429,7 +434,12 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 
 	for (int i = 0; i < lp->EntryCount; ++i)
 	{
+#ifdef WINDOWS
+		// Skip the leading dot slash because that breaks on Windows according to my testing
+		char* destination = CombinePath(outputDir, (char*)((uint64_t)lp->Entries[i]->RelativePathASCII + 2));
+#else
 		char* destination = CombinePath(outputDir, lp->Entries[i]->RelativePathASCII);
+#endif
 		char* destinationParent = GetDirectoryNameFromPath(destination);
 
 		if (!IsDirectory(destinationParent) && !mkdir_p(destinationParent, 0777))
@@ -448,7 +458,9 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 		fwrite(lp->Entries[i]->BinaryContents, 1, lp->Entries[i]->BinaryLength, f);
 		fclose(f);
 
-#ifndef WINDOWS
+#ifdef WINDOWS
+		SetFileAttributesA(destination, (DWORD)lp->Entries[i]->Permissions);
+#else
 		chmod(destination, (mode_t)lp->Entries[i]->Permissions);
 #endif
 
