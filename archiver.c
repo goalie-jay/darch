@@ -11,7 +11,6 @@
 #endif
 
 #include <string.h>
-
 #include "error.h"
 
 #ifdef WINDOWS
@@ -161,7 +160,7 @@ void ReconstructArchiveDataFromFile(ARCHIVE_HEADER* lp, FILE* input)
 	if (headerMagic != HEADER_MAGIC)
 	{
 		puts("Magic value did not match.");
-		exit(ERROR_BAD_MAGIC_VALUE);
+		exit(DARCH_ERROR_BAD_MAGIC_VALUE);
 	}
 
 	ARCHIVE_INT fileCount = readint(input);
@@ -174,7 +173,7 @@ void ReconstructArchiveDataFromFile(ARCHIVE_HEADER* lp, FILE* input)
 		if (entry->Magic != HEADER_MAGIC)
 		{
 			puts("Magic value did not match.");
-			exit(ERROR_BAD_MAGIC_VALUE);
+			exit(DARCH_ERROR_BAD_MAGIC_VALUE);
 		}
 
 		entry->RelativePathLength = readint(input);
@@ -206,7 +205,7 @@ char* GetFileNameFromPath(char* sz)
 	char* lp = malloc(allocSize);
 	memset(lp, 0, allocSize);
 
-	memcpy(lp, (char*)((unsigned long)sz + PLATFORM_SLASHIdx + 1), allocSize - 1);
+	memcpy(lp, (char*)((uint64_t)sz + PLATFORM_SLASHIdx + 1), allocSize - 1);
 	return lp;
 }
 
@@ -230,11 +229,11 @@ char* CombinePath(char* left, char* right)
 
 	memcpy(lp, left, lenLeft);
 	if (lp[lenLeft - 1] == PLATFORM_SLASH)
-		lpSecondStr = (char*)((unsigned long)lp + lenLeft);
+		lpSecondStr = (char*)((uint64_t)lp + lenLeft);
 	else
 	{
 		lp[lenLeft] = PLATFORM_SLASH;
-		lpSecondStr = (char*)((unsigned long)lp + lenLeft + 1);
+		lpSecondStr = (char*)((uint64_t)lp + lenLeft + 1);
 	}
 
 	memcpy(lpSecondStr, right, lenRight);
@@ -245,27 +244,23 @@ char* CombinePath(char* left, char* right)
 void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 {
 #ifdef WINDOWS
-	HANDLE hFile = CreateFileA();
+	if (Verbose)
+		printf("%s\n", filename);
 
-	if (hFile)
-	{
-		if (Verbose)
-			printf("%s\n", filename);
+	ARCHIVE_INT permissions = 0; // Skip on Windows because it's unnecessary
+	FILE* f = fopen(filename, "rb");
+	ARCHIVE_INT size = 0;
+	fseek(f, 0, SEEK_END);
+	size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	char* binary = malloc(size);
+	fread(binary, 1, size, f);
 
-		ARCHIVE_INT permissions = 0; // Skip on Windows because it's unnecessary
-		FILE* f = fopen(filename, "rb");
-		ARCHIVE_INT size = 0;
-		fseek(f, 0, SEEK_END);
-		size = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		char* binary = malloc(size);
-		fread(binary, 1, size, f);
-
-		char* fname = GetFileNameFromPath(filename);
-		char* relativePath = CombinePath(parent, fname);
-		free(fname);
-		HEADER_AddFile(lp, relativePath, binary, size, permissions);
-	}
+	char* fname = GetFileNameFromPath(filename);
+	char* relativePath = CombinePath(parent, fname);
+	free(fname);
+	fclose(f);
+	HEADER_AddFile(lp, relativePath, binary, size, permissions);
 #else
 	struct stat s;
 	if (stat(filename, &s) != -1)
@@ -285,6 +280,7 @@ void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 		char* fname = GetFileNameFromPath(filename);
 		char* relativePath = CombinePath(parent, fname);
 		free(fname);
+		fclose(f);
 		HEADER_AddFile(lp, relativePath, binary, size, permissions);
 	}
 #endif
@@ -333,7 +329,7 @@ void ARCHIVER_Archive(char** objectNames, long objectCount, FILE* output)
 		else
 		{
 			printf("Object %s queued for archiving could not be found.\n", objectNames[i]);
-			exit(ERROR_INACCESSIBLE_FS_OBJECT);
+			exit(DARCH_ERROR_INACCESSIBLE_FS_OBJECT);
 		}
 	}
 
@@ -374,7 +370,7 @@ char mkdir_p(char* path, mode_t mode)
 #ifdef WINDOWS
 			if (!CreateDirectoryA(tmp, NULL))
 			{
-				if (GetLastError() != ERROR_ALREADY_EXISTS)
+				if (GetLastError() != DARCH_ERROR_ALREADY_EXISTS)
 				{
 					free(tmp);
 					return 0;
@@ -399,7 +395,7 @@ char mkdir_p(char* path, mode_t mode)
 #ifdef WINDOWS
 	if (!CreateDirectoryA(tmp, NULL))
 	{
-		if (GetLastError() != ERROR_ALREADY_EXISTS)
+		if (GetLastError() != DARCH_ERROR_ALREADY_EXISTS)
 		{
 			free(tmp);
 			return 0;
@@ -428,7 +424,7 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 	if (!IsDirectory(outputDir) && !mkdir_p(outputDir, 0777))
 	{
 		puts("Could not create output directory.");
-		exit(ERROR_OUTPUT_DIRECTORY_CREATION_FAILURE);
+		exit(DARCH_ERROR_OUTPUT_DIRECTORY_CREATION_FAILURE);
 	}
 
 	for (int i = 0; i < lp->EntryCount; ++i)
@@ -439,14 +435,14 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 		if (!IsDirectory(destinationParent) && !mkdir_p(destinationParent, 0777))
 		{
 			printf("Failed to create directory %s.\n", destinationParent);
-			exit(ERROR_OUTPUT_DIRECTORY_CREATION_FAILURE);
+			exit(DARCH_ERROR_OUTPUT_DIRECTORY_CREATION_FAILURE);
 		}
 
 		FILE* f = fopen(destination, "wb");
 		if (!f)
 		{
 			printf("Failed to write file %s.\n", destination);
-			exit(ERROR_FILE_ACCESS);
+			exit(DARCH_ERROR_FILE_ACCESS);
 		}
 
 		fwrite(lp->Entries[i]->BinaryContents, 1, lp->Entries[i]->BinaryLength, f);

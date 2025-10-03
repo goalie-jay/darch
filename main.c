@@ -36,7 +36,7 @@ int main(int argc, char** argv)
             {
                 PrintUsage();
                 free(objects);
-                return ERROR_BAD_ARGUMENTS;
+                return DARCH_ERROR_BAD_ARGUMENTS;
             }
 
             output = argv[i];
@@ -61,14 +61,14 @@ int main(int argc, char** argv)
     {
         PrintUsage();
         free(objects);
-        return ERROR_BAD_ARGUMENTS;
+        return DARCH_ERROR_BAD_ARGUMENTS;
     }
 
     if (mode == OP_EXTRACT && objectCount != 1)
     {
         puts("Exactly one input file is allowed for extraction.");
         free(objects);
-        return ERROR_BAD_ARGUMENTS;
+        return DARCH_ERROR_BAD_ARGUMENTS;
     }
 
     switch (mode)
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
             {
                 puts("Could not open input file for reading.");
                 free(objects);
-                return ERROR_FILE_ACCESS;
+                return DARCH_ERROR_FILE_ACCESS;
             }
 
             ARCHIVER_Extract(f, output);
@@ -94,14 +94,14 @@ int main(int argc, char** argv)
             {
                 puts("Could not open output file for writing.");
                 free(objects);
-                return ERROR_FILE_ACCESS;
+                return DARCH_ERROR_FILE_ACCESS;
             }
 
             ARCHIVER_Archive(objects, objectCount, f);
             fclose(f);
         }
         case OP_UNDEFINED:
-            return ERROR_WTF;
+            return DARCH_ERROR_WTF;
     }
 
     free(objects);

@@ -30,7 +30,7 @@ static char** GetDirectoryObjectsOfType(char* szPath, size_t* nCount, ABSTRACTOB
 
     if (hFind == INVALID_HANDLE_VALUE)
     {
-    	free(lpArr)
+    	free(lpArr);
     	return NULL;
     }
 
