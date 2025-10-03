@@ -24,4 +24,4 @@ A dead-simple, non-compressing archiving tool.
 - [x] FreeBSD
 - [x] OpenBSD
 - [x] Literally any UNIX or just POSIX-compliant system
-- [x] Windows
+- [ ] Windows (Kind of, extraction is broken)
