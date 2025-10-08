@@ -374,22 +374,16 @@ char mkdir_p(char* path, mode_t mode)
 			*p = '\0';
 
 #ifdef WINDOWS
-			if (!CreateDirectoryA(tmp, NULL))
+			if (!CreateDirectoryA(tmp, NULL) && (GetLastError() != ERROR_ALREADY_EXISTS))
 			{
-				if (GetLastError() != ERROR_ALREADY_EXISTS)
-				{
-					free(tmp);
-					return 0;
-				}
+				free(tmp);
+				return 0;
 			}
 #else
-			if (mkdir(tmp, mode) != 0)
+			if ((mkdir(tmp, mode) != 0) && (errno != EEXIST))
 			{
-				if (errno != EEXIST)
-				{
-					free(tmp);
-					return 0;
-				}
+				free(tmp);
+				return 0;
 			}
 #endif
 
@@ -399,22 +393,16 @@ char mkdir_p(char* path, mode_t mode)
 
 	// Make final directory
 #ifdef WINDOWS
-	if (!CreateDirectoryA(tmp, NULL))
+	if (!CreateDirectoryA(tmp, NULL) && (GetLastError() != ERROR_ALREADY_EXISTS))
 	{
-		if (GetLastError() != ERROR_ALREADY_EXISTS)
-		{
-			free(tmp);
-			return 0;
-		}
+		free(tmp);
+		return 0;
 	}
 #else
-	if (mkdir(tmp, mode) != 0)
+	if ((mkdir(tmp, mode) != 0) && (errno != EEXIST))
 	{
-		if (errno != EEXIST)
-		{
-			free(tmp);
-			return 0;
-		}
+		free(tmp);
+		return 0;
 	}
 #endif
 
