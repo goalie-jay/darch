@@ -247,7 +247,8 @@ void AddFileToArchive(ARCHIVE_HEADER* lp, char* filename, char* parent)
 	if (Verbose)
 		printf("%s\n", filename);
 
-	ARCHIVE_INT permissions = (ARCHIVE_INT)GetFileAttributesA(filename); // Use perms field to store file attributes on Windows. Clever, eh?
+	// I wanted to store file attributes here, but this cannot be done because it would cause weirdness on other platforms
+	ARCHIVE_INT permissions = 0; // (ARCHIVE_INT)GetFileAttributesA(filename);
 	FILE* f = fopen(filename, "rb");
 	ARCHIVE_INT size = 0;
 	fseek(f, 0, SEEK_END);
@@ -459,9 +460,11 @@ void ARCHIVER_Extract(FILE* input, char* outputDir)
 		fclose(f);
 
 #ifdef WINDOWS
-		SetFileAttributesA(destination, (DWORD)lp->Entries[i]->Permissions);
+		// Actually, we can't do this, otherwise weirdness will ensue if we try to unpack an archive made on UNIX on Windows
+		// SetFileAttributesA(destination, (DWORD)lp->Entries[i]->Permissions);
 #else
-		chmod(destination, (mode_t)lp->Entries[i]->Permissions);
+		if (lp->Entries[i]->Permissions != 0)
+			chmod(destination, (mode_t)lp->Entries[i]->Permissions);
 #endif
 
 		free(destination);
