@@ -15,6 +15,7 @@ archive = sys.argv[1]
 
 f = open(archive, 'rb')
 magic = int.from_bytes(f.read(ARCHIVE_INT_SIZE), byteorder = 'little', signed = True) # Consume magic
+print('Archive size: ' + HexUpper(os.path.getsize(archive)) + '.')
 print('Magic number: ' + HexUpper(magic) + '.')
 
 if magic != MAGIC_NO:
